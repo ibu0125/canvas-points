@@ -1,10 +1,12 @@
-import React, { useRef, useEffect } from "react";
+import React, { useRef, useEffect, useState } from "react";
 
 const Canvas = () => {
   const canvasRef = useRef(null);
   const points = useRef([]);
   const intervalRef = useRef(null);
+  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
 
+  // 初期化とアニメーションループの設定
   useEffect(() => {
     const canvas = canvasRef.current;
     const ctx = canvas.getContext("2d");
@@ -21,6 +23,8 @@ const Canvas = () => {
           y: Math.random() * height,
           dx: (Math.random() - 0.5) * 2, // スピードを調整
           dy: (Math.random() - 0.5) * 2, // スピードを調整
+          originalDx: 0,
+          originalDy: 0,
         });
       }
     };
@@ -30,8 +34,8 @@ const Canvas = () => {
       ctx.clearRect(0, 0, width, height);
 
       // 線の描画
-      ctx.strokeStyle = "red";
-      ctx.lineWidth = 1;
+      ctx.strokeStyle = "rgba(173,216,230,0.8)";
+      ctx.lineWidth = 0.8;
       ctx.beginPath();
       for (let i = 0; i < points.current.length; i++) {
         const point1 = points.current[i];
@@ -72,6 +76,55 @@ const Canvas = () => {
     // クリーンアップ
     return () => {
       clearInterval(intervalRef.current);
+    };
+  }, []);
+
+  // マウス位置に基づいて点の動きを調整
+  useEffect(() => {
+    const adjustPointsBasedOnMouse = () => {
+      if (!points.current) return;
+
+      points.current.forEach((point) => {
+        const distanceX = mousePosition.x - point.x;
+        const distanceY = mousePosition.y - point.y;
+        const distance = Math.sqrt(distanceX ** 2 + distanceY ** 2);
+        if (!point.originalDx && !point.originalDy) {
+          point.originalDx = point.dx;
+          point.originalDy = point.dy;
+        }
+
+        // 点がマウスに近い場合、速度を変更
+        if (distance < 120) {
+          const angle = Math.atan2(distanceY, distanceX);
+
+          // 速度を調整
+          point.dx -= Math.cos(angle) * 0.8;
+          point.dy -= Math.sin(angle) * 0.8;
+        } else if (distance > 120) {
+          // 点がマウスから離れた場合、速度を元に戻す
+          point.dx = point.originalDx;
+          point.dy = point.originalDy;
+
+          // 元の速度がランダムで再設定されることを防ぐ
+          point.originalDx = 0;
+          point.originalDy = 0;
+        }
+      });
+    };
+
+    adjustPointsBasedOnMouse();
+  }, [mousePosition]);
+
+  // マウスの動きを監視
+  useEffect(() => {
+    const handleMouseMove = (event) => {
+      setMousePosition({ x: event.clientX, y: event.clientY });
+    };
+
+    window.addEventListener("mousemove", handleMouseMove);
+
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
     };
   }, []);
 
